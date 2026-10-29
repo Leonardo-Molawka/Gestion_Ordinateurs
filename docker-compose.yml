@@ -1,0 +1,98 @@
+services:
+  postgres:
+    image: postgres:15
+    environment:
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
+      POSTGRES_DB: GestionOrdinateursDb
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - appnet
+
+  keycloak:
+    image: quay.io/keycloak/keycloak:26.8.1
+    environment:
+      KC_BOOTSTRAP_ADMIN_USERNAME: admin
+      KC_BOOTSTRAP_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD:?Set KEYCLOAK_ADMIN_PASSWORD in .env}
+      KC_HOSTNAME: http://localhost:8180
+      KC_HTTP_ENABLED: "true"
+      KC_HEALTH_ENABLED: "true"
+    command: start-dev
+    ports:
+      - "8180:8080"
+    volumes:
+      - keycloak_data:/opt/keycloak/data
+    networks:
+      - appnet
+
+  gestionordinateurs-api:
+    image: ${DOCKER_ACCOUNT:-local}/gestionordinateurs-api:latest
+    build:
+      context: .
+      dockerfile: GestionOrdinateurs.API/Dockerfile
+    environment:
+      ASPNETCORE_URLS: http://+:5100
+      Jwt__Key: ${JWT_KEY:?Set JWT_KEY in .env}
+      ConnectionStrings__ParcInfo: Data Source=/data/parcinfo.db
+    ports:
+      - "5100:5100"
+    volumes:
+      - gestion_ordinateurs_data:/data
+    networks:
+      - appnet
+
+  authentification-api:
+    image: ${DOCKER_ACCOUNT:-local}/authentificationapi:latest
+    build:
+      context: .
+      dockerfile: AuthentificationApi/Dockerfile
+    environment:
+      ASPNETCORE_URLS: http://+:5210
+      Jwt__Key: ${JWT_KEY:?Set JWT_KEY in .env}
+      UsersApi__BaseAddress: http://gestionordinateurs-api:5100
+    depends_on:
+      - gestionordinateurs-api
+    ports:
+      - "5210:5210"
+    networks:
+      - appnet
+
+  gestionordinateurs-gateway:
+    image: ${DOCKER_ACCOUNT:-local}/gestionordinateurs-gateway:latest
+    build:
+      context: .
+      dockerfile: GestionOrdinateurs.Gateway/Dockerfile
+    environment:
+      ASPNETCORE_URLS: http://+:5010
+      Jwt__Key: ${JWT_KEY:?Set JWT_KEY in .env}
+      ReverseProxy__Clusters__gestionOrdinateurs__Destinations__api__Address: http://gestionordinateurs-api:5100/
+    depends_on:
+      - gestionordinateurs-api
+    ports:
+      - "5010:5010"
+    networks:
+      - appnet
+
+  gestionordinateurs-client:
+    image: ${DOCKER_ACCOUNT:-local}/gestionordinateurs-client:latest
+    build:
+      context: .
+      dockerfile: GestionOrdinateurs.Client/Dockerfile
+    depends_on:
+      - authentification-api
+      - gestionordinateurs-gateway
+    ports:
+      - "5000:5000"
+    networks:
+      - appnet
+
+volumes:
+  postgres_data:
+  keycloak_data:
+  gestion_ordinateurs_data:
+
+networks:
+  appnet:

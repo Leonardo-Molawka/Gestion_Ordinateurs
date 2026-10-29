@@ -20,13 +20,15 @@ builder.Services.AddScoped<IOrdinateurService, OrdinateurService>();
 builder.Services.AddScoped<ReparationService>();
 builder.Services.AddSingleton<StockService>();
 builder.Services.AddSingleton<JournalService>();
-builder.Services.AddDbContextFactory<ParcInformatiqueContext>();
+builder.Services.AddDbContextFactory<ParcInformatiqueContext>(options =>
+    options.UseSqlite(
+        builder.Configuration.GetConnectionString("ParcInfo") ?? "Data Source=parcinfo.db"));
 
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowBlazorClient", policy =>
     {
-        policy.WithOrigins("http://localhost:5124", "https://localhost:7176")
+        policy.WithOrigins("http://localhost:5000", "http://localhost:5124", "https://localhost:7176")
             .AllowAnyHeader()
             .AllowAnyMethod();
     });
