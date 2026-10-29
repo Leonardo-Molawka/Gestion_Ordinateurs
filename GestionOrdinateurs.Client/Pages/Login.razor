@@ -1,0 +1,91 @@
+@page "/login"
+@using System.ComponentModel.DataAnnotations
+@using System.Net
+@using System.Net.Http.Json
+@using Blazored.SessionStorage
+@inject IHttpClientFactory HttpClientFactory
+@inject ISessionStorageService SessionStorage
+@inject NavigationManager Navigation
+
+<PageTitle>Connexion</PageTitle>
+
+<h1>Connexion</h1>
+
+<EditForm Model="@loginModel" OnValidSubmit="ConnecterAsync">
+    <DataAnnotationsValidator />
+    <ValidationSummary />
+    <div class="mb-3">
+        <label for="login" class="form-label">Login</label>
+        <InputText id="login" class="form-control" @bind-Value="loginModel.Login" />
+        <ValidationMessage For="@(() => loginModel.Login)" />
+    </div>
+    <button type="submit" class="btn btn-primary" disabled="@isConnecting">
+        @(isConnecting ? "Connexion..." : "Se connecter")
+    </button>
+</EditForm>
+
+@if (!string.IsNullOrWhiteSpace(errorMessage))
+{
+    <p class="text-danger mt-3" role="alert">@errorMessage</p>
+}
+
+@code {
+    private readonly LoginModel loginModel = new();
+    private bool isConnecting;
+    private string? errorMessage;
+
+    private async Task ConnecterAsync()
+    {
+        isConnecting = true;
+        errorMessage = null;
+
+        try
+        {
+            var client = HttpClientFactory.CreateClient("AuthenticationApi");
+            using var response = await client.PostAsJsonAsync(
+                "api/authentication/login",
+                new { Login = loginModel.Login.Trim() });
+
+            if (response.StatusCode == HttpStatusCode.NotFound)
+            {
+                errorMessage = "Cet utilisateur n'existe pas.";
+                return;
+            }
+
+            if (!response.IsSuccessStatusCode)
+            {
+                errorMessage = "La connexion a échoué. Réessayez plus tard.";
+                return;
+            }
+
+            var authentication = await response.Content.ReadFromJsonAsync<AuthenticationResponse>();
+            if (authentication is null || string.IsNullOrWhiteSpace(authentication.Token))
+            {
+                errorMessage = "La réponse du serveur est invalide.";
+                return;
+            }
+
+            await SessionStorage.SetItemAsync("authToken", authentication.Token);
+            Navigation.NavigateTo("/", forceLoad: true);
+        }
+        catch (HttpRequestException)
+        {
+            errorMessage = "L'API d'authentification est indisponible.";
+        }
+        finally
+        {
+            isConnecting = false;
+        }
+    }
+
+    private sealed class LoginModel
+    {
+        [Required(ErrorMessage = "Le login est obligatoire.")]
+        public string Login { get; set; } = string.Empty;
+    }
+
+    public sealed class AuthenticationResponse
+    {
+        public string Token { get; set; } = string.Empty;
+    }
+}

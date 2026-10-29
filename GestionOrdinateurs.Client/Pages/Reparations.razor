@@ -1,0 +1,74 @@
+@page "/reparations"
+@using System.Globalization
+@using GestionOrdinateurs.Shared
+@inject IHttpClientFactory HttpClientFactory
+
+<PageTitle>Historique des réparations</PageTitle>
+
+<h1>Historique des réparations</h1>
+
+@if (isLoading)
+{
+    <p><em>Chargement de l'historique...</em></p>
+}
+else if (!string.IsNullOrWhiteSpace(errorMessage))
+{
+    <p class="text-danger" role="alert">@errorMessage</p>
+}
+else if (reparations is { Count: 0 })
+{
+    <p>Aucune réparation à afficher.</p>
+}
+else if (reparations is not null)
+{
+    <table class="table">
+        <thead>
+            <tr>
+                <th>Ordinateur</th>
+                <th>Technicien</th>
+                <th>Type de réparation</th>
+                <th>Date d'intervention</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var reparation in reparations)
+            {
+                <tr>
+                    <td>@reparation.NomOrdinateur</td>
+                    <td>@reparation.Technicien</td>
+                    <td>@reparation.TypeReparation</td>
+                    <td>@reparation.DateIntervention.ToString("g", CultureInfo.GetCultureInfo("fr-FR"))</td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+
+@code {
+    private List<HistoriqueReparation>? reparations;
+    private bool isLoading = true;
+    private string? errorMessage;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            var client = HttpClientFactory.CreateClient("GestionOrdinateursGateway");
+            reparations = await client.GetFromJsonAsync<List<HistoriqueReparation>>("api/reparations/historique");
+            if (reparations is null)
+            {
+                errorMessage = "L'API a renvoyé une réponse invalide.";
+            }
+        }
+        catch (HttpRequestException exception)
+        {
+            errorMessage = exception.StatusCode == System.Net.HttpStatusCode.Unauthorized
+                ? "Connectez-vous pour consulter l'historique des réparations."
+                : "Impossible de récupérer l'historique depuis l'API.";
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+}

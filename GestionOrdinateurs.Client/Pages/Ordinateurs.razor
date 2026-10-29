@@ -1,0 +1,74 @@
+@page "/ordinateurs"
+@using System.Globalization
+@using GestionOrdinateurs.Shared
+@inject IHttpClientFactory HttpClientFactory
+
+<PageTitle>Ordinateurs</PageTitle>
+
+<h1>Ordinateurs</h1>
+
+@if (isLoading)
+{
+    <p><em>Chargement des ordinateurs...</em></p>
+}
+else if (!string.IsNullOrWhiteSpace(errorMessage))
+{
+    <p class="text-danger" role="alert">@errorMessage</p>
+}
+else if (ordinateurs is { Count: 0 })
+{
+    <p>Aucun ordinateur à afficher.</p>
+}
+else if (ordinateurs is not null)
+{
+    <table class="table">
+        <thead>
+            <tr>
+                <th>Nom</th>
+                <th>Prix</th>
+                <th>Devise</th>
+                <th>Vendu</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var ordinateur in ordinateurs)
+            {
+                <tr>
+                    <td>@ordinateur.Nom</td>
+                    <td>@ordinateur.Prix.ToString("F2", CultureInfo.GetCultureInfo("fr-FR"))</td>
+                    <td>€</td>
+                    <td>@(ordinateur.Vendu ? "Oui" : "Non")</td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+
+@code {
+    private List<Ordinateur>? ordinateurs;
+    private bool isLoading = true;
+    private string? errorMessage;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            var client = HttpClientFactory.CreateClient("GestionOrdinateursGateway");
+            ordinateurs = await client.GetFromJsonAsync<List<Ordinateur>>("api/ordinateurs");
+            if (ordinateurs is null)
+            {
+                errorMessage = "L'API a renvoyé une réponse invalide.";
+            }
+        }
+        catch (HttpRequestException exception)
+        {
+            errorMessage = exception.StatusCode == System.Net.HttpStatusCode.Unauthorized
+                ? "Connectez-vous pour consulter les ordinateurs."
+                : "Impossible de récupérer les ordinateurs depuis l'API.";
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+}

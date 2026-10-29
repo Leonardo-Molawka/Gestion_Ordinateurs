@@ -1,0 +1,66 @@
+@GestionOrdinateurs.API_HostAddress = http://localhost:5100
+@ordinateursUrl = {{GestionOrdinateurs.API_HostAddress}}/api/ordinateurs
+
+### Lister tous les ordinateurs
+GET {{ordinateursUrl}}
+Accept: application/json
+
+### Lister les ordinateurs disponibles
+GET {{ordinateursUrl}}/disponibles
+Accept: application/json
+
+### Rechercher par marque
+GET {{ordinateursUrl}}/par-marque/Dell
+Accept: application/json
+
+### Trier par prix décroissant
+GET {{ordinateursUrl}}/prix
+Accept: application/json
+
+### Obtenir un ordinateur par identifiant
+GET {{ordinateursUrl}}/1
+Accept: application/json
+
+### Créer un ordinateur
+POST {{ordinateursUrl}}
+Content-Type: application/json
+
+{
+  "id": 99,
+  "nom": "Ordinateur de test",
+  "marque": "Dell",
+  "ram": 16,
+  "processeur": "Intel Core i7",
+  "etat": 0,
+  "stock": 5,
+  "prix": 899.99
+}
+
+### Mettre à jour un ordinateur, y compris son stock et son prix
+PUT {{ordinateursUrl}}/99
+Content-Type: application/json
+
+{
+  "id": 99,
+  "nom": "Ordinateur de test mis à jour",
+  "marque": "Dell",
+  "ram": 32,
+  "processeur": "Intel Core i9",
+  "etat": 1,
+  "stock": 2,
+  "prix": 1199.99
+}
+
+### Supprimer un ordinateur
+DELETE {{ordinateursUrl}}/99
+
+### Lister les réparations avec les informations de l'ordinateur
+GET {{GestionOrdinateurs.API_HostAddress}}/api/reparation
+Accept: application/json
+
+### Simuler trois réparations en parallèle
+POST {{GestionOrdinateurs.API_HostAddress}}/api/reparation/SimulerReparation
+
+### Consommer dix SSD en parallèle et consulter le stock restant
+GET {{GestionOrdinateurs.API_HostAddress}}/api/reparation/GetStockSSD
+Accept: application/json
