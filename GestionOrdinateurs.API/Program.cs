@@ -4,16 +4,19 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi;
-using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
 
-var jwtKey = builder.Configuration["Jwt:Key"];
-if (string.IsNullOrWhiteSpace(jwtKey) || Encoding.UTF8.GetByteCount(jwtKey) < 32)
+var keycloakAuthority = builder.Configuration["Authentication:Authority"];
+if (!Uri.TryCreate(keycloakAuthority, UriKind.Absolute, out _))
 {
     throw new InvalidOperationException(
-        "Configure Jwt:Key with the same signing key used by AuthentificationApi, using user secrets or another secure configuration provider.");
+        "Configure Authentication:Authority with the Keycloak realm URL.");
 }
+var tokenIssuer = builder.Configuration["Authentication:ValidIssuer"]
+    ?? throw new InvalidOperationException("Configure Authentication:ValidIssuer with the Keycloak realm issuer.");
+var tokenAudience = builder.Configuration["Authentication:Audience"]
+    ?? throw new InvalidOperationException("Configure Authentication:Audience with the API audience.");
 
 builder.Services.AddControllers();
 builder.Services.AddScoped<IOrdinateurService, OrdinateurService>();
@@ -60,14 +63,20 @@ builder.Services
     .AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
     {
-        options.RequireHttpsMetadata = false;
-        options.SaveToken = true;
+        options.Authority = keycloakAuthority;
+        options.Audience = tokenAudience;
+        options.RequireHttpsMetadata = builder.Configuration.GetValue(
+            "Authentication:RequireHttpsMetadata",
+            !builder.Environment.IsDevelopment());
+        options.MapInboundClaims = false;
         options.TokenValidationParameters = new TokenValidationParameters
         {
-            ValidateIssuerSigningKey = true,
-            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey)),
-            ValidateIssuer = false,
-            ValidateAudience = false
+            ValidateIssuer = true,
+            ValidIssuer = tokenIssuer,
+            ValidateAudience = true,
+            ValidAudience = tokenAudience,
+            NameClaimType = "preferred_username",
+            RoleClaimType = "roles"
         };
     });
 builder.Services.AddAuthorization();

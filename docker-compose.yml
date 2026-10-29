@@ -18,13 +18,15 @@ services:
       KC_BOOTSTRAP_ADMIN_USERNAME: admin
       KC_BOOTSTRAP_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD:?Set KEYCLOAK_ADMIN_PASSWORD in .env}
       KC_HOSTNAME: http://localhost:8180
+      KC_HOSTNAME_BACKCHANNEL_DYNAMIC: "true"
       KC_HTTP_ENABLED: "true"
       KC_HEALTH_ENABLED: "true"
-    command: start-dev
+    command: start-dev --import-realm
     ports:
       - "8180:8080"
     volumes:
       - keycloak_data:/opt/keycloak/data
+      - ./keycloak/gestion-ordinateurs-realm.json:/opt/keycloak/data/import/gestion-ordinateurs-realm.json:ro
     networks:
       - appnet
 
@@ -35,7 +37,10 @@ services:
       dockerfile: GestionOrdinateurs.API/Dockerfile
     environment:
       ASPNETCORE_URLS: http://+:5100
-      Jwt__Key: ${JWT_KEY:?Set JWT_KEY in .env}
+      Authentication__Authority: http://keycloak:8080/realms/gestion-ordinateurs
+      Authentication__ValidIssuer: http://localhost:8180/realms/gestion-ordinateurs
+      Authentication__Audience: gestionordinateurs-api
+      Authentication__RequireHttpsMetadata: "false"
       ConnectionStrings__ParcInfo: Data Source=/data/parcinfo.db
     ports:
       - "5100:5100"
@@ -51,8 +56,6 @@ services:
       dockerfile: AuthentificationApi/Dockerfile
     environment:
       ASPNETCORE_URLS: http://+:5210
-      Jwt__Key: ${JWT_KEY:?Set JWT_KEY in .env}
-      UsersApi__BaseAddress: http://gestionordinateurs-api:5100
     depends_on:
       - gestionordinateurs-api
     ports:
@@ -67,10 +70,14 @@ services:
       dockerfile: GestionOrdinateurs.Gateway/Dockerfile
     environment:
       ASPNETCORE_URLS: http://+:5010
-      Jwt__Key: ${JWT_KEY:?Set JWT_KEY in .env}
+      Authentication__Authority: http://keycloak:8080/realms/gestion-ordinateurs
+      Authentication__ValidIssuer: http://localhost:8180/realms/gestion-ordinateurs
+      Authentication__Audience: gestionordinateurs-api
+      Authentication__RequireHttpsMetadata: "false"
       ReverseProxy__Clusters__gestionOrdinateurs__Destinations__api__Address: http://gestionordinateurs-api:5100/
     depends_on:
       - gestionordinateurs-api
+      - keycloak
     ports:
       - "5010:5010"
     networks:

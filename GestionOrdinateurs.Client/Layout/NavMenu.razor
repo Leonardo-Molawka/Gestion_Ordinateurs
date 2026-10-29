@@ -1,5 +1,4 @@
-@using Blazored.SessionStorage
-@inject ISessionStorageService SessionStorage
+@using Microsoft.AspNetCore.Components.WebAssembly.Authentication
 @inject NavigationManager Navigation
 
 <div class="top-row ps-3 navbar navbar-dark">
@@ -18,22 +17,22 @@
                 <span class="bi bi-house-door-fill-nav-menu" aria-hidden="true"></span> Home
             </NavLink>
         </div>
-        @if (isAuthenticated)
-        {
-            <div class="nav-item px-3">
-                <button class="nav-link btn btn-link" @onclick="DeconnecterAsync">
-                    Déconnexion
-                </button>
-            </div>
-        }
-        else
-        {
-            <div class="nav-item px-3">
-                <NavLink class="nav-link" href="login">
-                    Connexion
-                </NavLink>
-            </div>
-        }
+        <AuthorizeView>
+            <Authorized>
+                <div class="nav-item px-3">
+                    <button class="nav-link btn btn-link" @onclick="Deconnecter">
+                        Déconnexion
+                    </button>
+                </div>
+            </Authorized>
+            <NotAuthorized>
+                <div class="nav-item px-3">
+                    <NavLink class="nav-link" href="login">
+                        Connexion
+                    </NavLink>
+                </div>
+            </NotAuthorized>
+        </AuthorizeView>
         <div class="nav-item px-3">
             <NavLink class="nav-link" href="ordinateurs">
                 Ordinateurs
@@ -49,20 +48,12 @@
 
 @code {
     private bool collapseNavMenu = true;
-    private bool isAuthenticated;
 
     private string? NavMenuCssClass => collapseNavMenu ? "collapse" : null;
 
-    protected override async Task OnInitializedAsync()
+    private void Deconnecter()
     {
-        isAuthenticated = await SessionStorage.ContainKeyAsync("authToken");
-    }
-
-    private async Task DeconnecterAsync()
-    {
-        await SessionStorage.RemoveItemAsync("authToken");
-        isAuthenticated = false;
-        Navigation.NavigateTo("/", forceLoad: true);
+        Navigation.NavigateToLogout("authentication/logout");
     }
 
     private void ToggleNavMenu()
